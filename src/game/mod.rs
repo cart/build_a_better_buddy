@@ -1,8 +1,8 @@
-mod animate;
-mod battle_ground;
-mod buddy;
-mod counters;
-mod ui;
+pub mod animate;
+pub mod battle_ground;
+pub mod buddy;
+pub mod counters;
+pub mod ui;
 
 use crate::{
     game::{

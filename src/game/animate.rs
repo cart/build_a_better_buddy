@@ -38,20 +38,20 @@ pub fn scale_up(time: Res<Time>, mut query: Query<(&mut Transform, &mut AnimateS
 }
 
 pub enum Ease {
-    InOutCirc,
+    // InOutCirc,
     OutBack,
 }
 
 impl Ease {
     pub fn ease(&self, x: f32) -> f32 {
         match self {
-            Ease::InOutCirc => {
-                if x < 0.5 {
-                    (1. - (1. - (2. * x).powf(2.)).sqrt()) / 2.
-                } else {
-                    ((1. - (-2. * x + 2.).powf(2.)).sqrt() + 1.) / 2.
-                }
-            }
+            // Ease::InOutCirc => {
+            //     if x < 0.5 {
+            //         (1. - (1. - (2. * x).powf(2.)).sqrt()) / 2.
+            //     } else {
+            //         ((1. - (-2. * x + 2.).powf(2.)).sqrt() + 1.) / 2.
+            //     }
+            // }
             Ease::OutBack => {
                 const C1: f32 = 1.70158;
                 const C3: f32 = C1 + 1.0;

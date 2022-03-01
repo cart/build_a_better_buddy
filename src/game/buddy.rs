@@ -129,14 +129,14 @@ pub fn spawn_buddy(commands: &mut Commands, asset_server: &AssetServer, buddy: B
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("buddy/base2.png"),
+                    texture: asset_server.load("buddy/base.png"),
                     transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY),
                     ..Default::default()
                 })
                 .insert(BuddyBodySprite);
             parent
                 .spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("buddy/outline2.png"),
+                    texture: asset_server.load("buddy/outline.png"),
                     transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1),
                     ..Default::default()
                 })
