@@ -1,22 +1,5 @@
+use crate::game::counters::{spawn_coins_element, spawn_trophies_element};
 use bevy::prelude::*;
-
-pub fn spawn_money_element(commands: &mut ChildBuilder, asset_server: &AssetServer) {
-    commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Px(200.0), Val::Px(32.0)),
-                ..Default::default()
-            },
-            color: Color::RED.into(),
-            ..Default::default()
-        })
-        .with_children(|parent| {
-            parent.spawn_bundle(ImageBundle {
-                image: UiImage(asset_server.load("money.png")),
-                ..Default::default()
-            });
-        });
-}
 
 pub fn spawn_ui(commands: &mut Commands, asset_server: &AssetServer) {
     commands
@@ -32,7 +15,8 @@ pub fn spawn_ui(commands: &mut Commands, asset_server: &AssetServer) {
             ..Default::default()
         })
         .with_children(|parent| {
-            spawn_money_element(parent, asset_server);
+            spawn_coins_element(parent, asset_server);
+            spawn_trophies_element(parent, asset_server);
         });
 
     // spawn overlay

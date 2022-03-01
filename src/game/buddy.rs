@@ -1,7 +1,13 @@
 use bevy::prelude::*;
 
 use rand::Rng;
-use std::f32::consts::PI;
+use std::{f32::consts::PI, time::Duration};
+
+use crate::game::{
+    animate::{AnimateScale, Ease},
+    battle_ground::Pad,
+    Z_BUDDY,
+};
 
 pub struct BuddyPlugin;
 
@@ -9,11 +15,12 @@ impl Plugin for BuddyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OutlineTimer>()
             .add_system(update_outlines)
-            .add_system(set_buddy_face);
+            .add_system(set_buddy_face)
+            .add_system(move_buddy);
     }
 }
 
-#[derive(Component)]
+#[derive(Component, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -25,12 +32,12 @@ impl Default for Side {
     }
 }
 
-#[derive(Component)]
-pub struct BuddySlot(usize);
+#[derive(Component, PartialEq, Eq)]
+pub struct Slot(pub usize);
 
 const MAX_BUDDIES_PER_SIDE: usize = 3;
 
-impl BuddySlot {
+impl Slot {
     pub fn new(slot: usize) -> Self {
         if slot >= MAX_BUDDIES_PER_SIDE {
             panic!("invalid buddy slot {slot}");
@@ -40,7 +47,7 @@ impl BuddySlot {
     }
 }
 
-impl Default for BuddySlot {
+impl Default for Slot {
     fn default() -> Self {
         Self::new(0)
     }
@@ -72,11 +79,11 @@ pub struct BuddyColor(Color);
 
 impl BuddyColor {
     pub fn red() -> Self {
-        Self(Color::rgb(1.0, 0.8, 0.8))
+        Self(Color::hex("ad8988").unwrap())
     }
 
     pub fn blue() -> Self {
-        Self(Color::rgb(0.8, 0.8, 1.0))
+        Self(Color::hex("8a89ae").unwrap())
     }
 }
 
@@ -104,37 +111,43 @@ impl Default for OutlineTimer {
 pub struct BuddyBundle {
     pub buddy: Buddy,
     pub face: BuddyFace,
-    pub slot: BuddySlot,
+    pub slot: Slot,
     pub color: BuddyColor,
     pub side: Side,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
 }
 
-pub fn spawn_buddy(commands: &mut Commands, asset_server: &AssetServer, mut buddy: BuddyBundle) {
-    buddy.transform.scale = Vec3::splat(2.0);
-    commands.spawn_bundle(buddy).with_children(|parent| {
-        parent
-            .spawn_bundle(SpriteBundle {
-                texture: asset_server.load("buddy/base.png"),
-                transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                ..Default::default()
-            })
-            .insert(BuddyBodySprite);
-        parent
-            .spawn_bundle(SpriteBundle {
-                texture: asset_server.load("buddy/outline.png"),
-                transform: Transform::from_xyz(0.0, 0.0, 1.0),
-                ..Default::default()
-            })
-            .insert(BuddyOutline);
-        parent
-            .spawn_bundle(SpriteBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 2.0),
-                ..Default::default()
-            })
-            .insert(BuddyFaceSprite);
-    });
+pub fn spawn_buddy(commands: &mut Commands, asset_server: &AssetServer, buddy: BuddyBundle) {
+    commands
+        .spawn_bundle(buddy)
+        .insert(AnimateScale::new(
+            Duration::from_secs_f32(0.6),
+            Ease::OutBack,
+            0.0..1.0,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn_bundle(SpriteBundle {
+                    texture: asset_server.load("buddy/base2.png"),
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY),
+                    ..Default::default()
+                })
+                .insert(BuddyBodySprite);
+            parent
+                .spawn_bundle(SpriteBundle {
+                    texture: asset_server.load("buddy/outline2.png"),
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1),
+                    ..Default::default()
+                })
+                .insert(BuddyOutline);
+            parent
+                .spawn_bundle(SpriteBundle {
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2),
+                    ..Default::default()
+                })
+                .insert(BuddyFaceSprite);
+        });
 }
 
 fn update_outlines(
@@ -185,6 +198,19 @@ fn set_buddy_face(
     for (mut sprite, parent) in bodies.iter_mut() {
         if let Ok((_, _, color)) = buddies.get(parent.0) {
             sprite.color = color.0;
+        }
+    }
+}
+
+fn move_buddy(
+    mut buddies: Query<(&mut Transform, &Side, &Slot), (With<Buddy>, Without<Pad>)>,
+    pads: Query<(&Transform, &Side, &Slot), (With<Pad>, Without<Buddy>)>,
+) {
+    for (mut buddy_transform, buddy_side, buddy_slot) in buddies.iter_mut() {
+        for (pad_transform, pad_side, pad_slot) in pads.iter() {
+            if buddy_side == pad_side && buddy_slot == pad_slot {
+                *buddy_transform = *pad_transform;
+            }
         }
     }
 }

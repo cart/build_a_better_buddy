@@ -1,9 +1,7 @@
-mod buddy;
 mod game;
 mod menu;
-mod ui;
 
-use crate::{buddy::BuddyPlugin, game::GamePlugin, menu::MenuPlugin};
+use crate::{game::GamePlugin, menu::MenuPlugin};
 use bevy::prelude::*;
 
 fn main() {
@@ -17,7 +15,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(MenuPlugin)
         .add_plugin(GamePlugin)
-        .add_plugin(BuddyPlugin)
         .add_startup_system(setup)
         .run();
 }
