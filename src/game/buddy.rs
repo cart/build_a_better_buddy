@@ -4,7 +4,7 @@ use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 use crate::game::{
-    animate::{AnimateScale, Ease},
+    animate::{AnimateRange, AnimateScale, Ease},
     battle_ground::Pad,
     Z_BUDDY,
 };
@@ -113,6 +113,7 @@ pub struct BuddyBundle {
     pub face: BuddyFace,
     pub slot: Slot,
     pub color: BuddyColor,
+    pub wobble: BuddyWobble,
     pub side: Side,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
@@ -125,25 +126,28 @@ pub fn spawn_buddy(commands: &mut Commands, asset_server: &AssetServer, buddy: B
             Duration::from_secs_f32(0.6),
             Ease::OutBack,
             0.0..1.0,
+            false,
         ))
         .with_children(|parent| {
             parent
                 .spawn_bundle(SpriteBundle {
                     texture: asset_server.load("buddy/base.png"),
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY),
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY).with_scale(Vec3::splat(0.5)),
                     ..Default::default()
                 })
                 .insert(BuddyBodySprite);
             parent
                 .spawn_bundle(SpriteBundle {
                     texture: asset_server.load("buddy/outline.png"),
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1),
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1)
+                        .with_scale(Vec3::splat(0.5)),
                     ..Default::default()
                 })
                 .insert(BuddyOutline);
             parent
                 .spawn_bundle(SpriteBundle {
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2),
+                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2)
+                        .with_scale(Vec3::splat(0.5)),
                     ..Default::default()
                 })
                 .insert(BuddyFaceSprite);
@@ -202,15 +206,79 @@ fn set_buddy_face(
     }
 }
 
+#[derive(Component)]
+pub struct BuddyWobble {
+    animate_rotation: AnimateRange,
+    animate_translation: AnimateRange,
+    flipped: bool,
+}
+
+impl Default for BuddyWobble {
+    fn default() -> Self {
+        let mut rng = rand::thread_rng();
+        Self::new(rng.gen(), rng.gen_range(0.0..1.0))
+    }
+}
+
+impl BuddyWobble {
+    pub fn new(flipped: bool, percent: f32) -> Self {
+        let rot = PI * 0.05;
+        let trans = 10.0;
+        let rot_range;
+        let trans_range;
+        if flipped {
+            rot_range = rot..-rot;
+            trans_range = -trans..trans;
+        } else {
+            rot_range = -rot..rot;
+            trans_range = trans..-trans;
+        }
+
+        let mut rng = rand::thread_rng();
+        let duration = Duration::from_secs_f32(rng.gen_range(2.0..5.0));
+        let ease = Ease::InOutCirc;
+        let mut animate_rotation = AnimateRange::new(duration, ease, rot_range, false);
+        let mut animate_translation = AnimateRange::new(duration, ease, trans_range, false);
+
+        animate_rotation.set_percent(percent);
+        animate_translation.set_percent(percent);
+
+        Self {
+            animate_rotation,
+            animate_translation,
+            flipped,
+        }
+    }
+    pub fn wobble(&mut self, delta: Duration) -> Transform {
+        let z_rot = self.animate_rotation.tick(delta);
+        let x = self.animate_translation.tick(delta);
+        if self.animate_rotation.just_finished() {
+            *self = BuddyWobble::new(!self.flipped, 0.0);
+        }
+
+        Transform {
+            translation: Vec3::new(x, 0.0, 0.0),
+            rotation: Quat::from_rotation_z(z_rot),
+            ..Default::default()
+        }
+    }
+}
+
 fn move_buddy(
-    mut buddies: Query<(&mut Transform, &Side, &Slot), (With<Buddy>, Without<Pad>)>,
+    time: Res<Time>,
+    mut buddies: Query<
+        (&mut Transform, &Side, &Slot, &mut BuddyWobble),
+        (With<Buddy>, Without<Pad>),
+    >,
     pads: Query<(&Transform, &Side, &Slot), (With<Pad>, Without<Buddy>)>,
 ) {
-    for (mut buddy_transform, buddy_side, buddy_slot) in buddies.iter_mut() {
+    for (mut buddy_transform, buddy_side, buddy_slot, mut wobble) in buddies.iter_mut() {
         for (pad_transform, pad_side, pad_slot) in pads.iter() {
             if buddy_side == pad_side && buddy_slot == pad_slot {
                 *buddy_transform = *pad_transform;
             }
         }
+
+        *buddy_transform = *buddy_transform * wobble.wobble(time.delta());
     }
 }

@@ -16,7 +16,7 @@ pub fn spawn_coins_element(commands: &mut ChildBuilder, asset_server: &AssetServ
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(72.0)),
+                size: Size::new(Val::Px(150.0), Val::Px(74.0)),
                 margin: Rect {
                     top: Val::Px(4.0),
                     left: Val::Px(4.0),
@@ -68,7 +68,7 @@ pub fn spawn_trophies_element(commands: &mut ChildBuilder, asset_server: &AssetS
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(72.0)),
+                size: Size::new(Val::Px(150.0), Val::Px(74.0)),
                 margin: Rect {
                     top: Val::Px(4.0),
                     left: Val::Px(4.0),
