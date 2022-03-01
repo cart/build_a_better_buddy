@@ -74,6 +74,41 @@ impl BuddyFace {
     }
 }
 
+#[derive(Component)]
+pub struct BuddyBlink {
+    timer: Timer,
+    is_blinking: bool,
+}
+
+impl Default for BuddyBlink {
+    fn default() -> Self {
+        Self::new(false)
+    }
+}
+
+impl BuddyBlink {
+    pub fn new(is_blinking: bool) -> Self {
+        let mut rng = rand::thread_rng();
+        let seconds = if is_blinking {
+            rng.gen_range(0.05..0.2)
+        } else {
+            rng.gen_range(10.0..20.0)
+        };
+        Self {
+            timer: Timer::new(Duration::from_secs_f32(seconds), false),
+            is_blinking,
+        }
+    }
+
+    pub fn blink(&mut self, delta: Duration) -> bool {
+        if self.timer.tick(delta).just_finished() {
+            *self = BuddyBlink::new(!self.is_blinking);
+        }
+
+        self.is_blinking
+    }
+}
+
 #[derive(Component, Default)]
 pub struct BuddyColor(Color);
 
@@ -111,6 +146,7 @@ impl Default for OutlineTimer {
 pub struct BuddyBundle {
     pub buddy: Buddy,
     pub face: BuddyFace,
+    pub blink: BuddyBlink,
     pub slot: Slot,
     pub color: BuddyColor,
     pub wobble: BuddyWobble,
@@ -177,7 +213,8 @@ fn update_outlines(
 
 fn set_buddy_face(
     asset_server: Res<AssetServer>,
-    buddies: Query<(&Side, &BuddyFace, &BuddyColor), With<Buddy>>,
+    time: Res<Time>,
+    mut buddies: Query<(&Side, &BuddyFace, &BuddyColor, &mut BuddyBlink), With<Buddy>>,
     mut faces: Query<
         (&mut Handle<Image>, &mut Sprite, &Parent),
         (With<BuddyFaceSprite>, Without<BuddyBodySprite>),
@@ -185,7 +222,7 @@ fn set_buddy_face(
     mut bodies: Query<(&mut Sprite, &Parent), With<BuddyBodySprite>>,
 ) {
     for (mut image, mut sprite, parent) in faces.iter_mut() {
-        if let Ok((side, face, _)) = buddies.get(parent.0) {
+        if let Ok((side, face, _, mut blink)) = buddies.get_mut(parent.0) {
             match side {
                 Side::Left => {
                     sprite.flip_x = false;
@@ -194,13 +231,16 @@ fn set_buddy_face(
                     sprite.flip_x = true;
                 }
             }
-
-            *image = asset_server.load(face.get_path());
+            if blink.blink(time.delta()) {
+                *image = asset_server.load("buddy/face/blink.png");
+            } else {
+                *image = asset_server.load(face.get_path());
+            }
         }
     }
 
     for (mut sprite, parent) in bodies.iter_mut() {
-        if let Ok((_, _, color)) = buddies.get(parent.0) {
+        if let Ok((_, _, color, _)) = buddies.get(parent.0) {
             sprite.color = color.0;
         }
     }
