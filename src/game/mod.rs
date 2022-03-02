@@ -7,7 +7,7 @@ pub mod ui;
 use crate::{
     game::{
         animate::AnimatePlugin,
-        battle_ground::spawn_pad,
+        battle_ground::{enter_battle_ground, position_pad, spawn_pad},
         buddy::BuddyPlugin,
         counters::{set_coin_text, Coins},
     },
@@ -28,8 +28,16 @@ impl Plugin for GamePlugin {
         app.add_plugin(BuddyPlugin)
             .add_plugin(AnimatePlugin)
             .insert_resource(Coins(20))
-            .add_system_set(SystemSet::on_enter(AppState::Game).with_system(setup_game))
-            .add_system_set(SystemSet::on_update(AppState::Game).with_system(set_coin_text));
+            .add_system_set(
+                SystemSet::on_enter(AppState::Game)
+                    .with_system(setup_game.exclusive_system().at_start())
+                    .with_system(enter_battle_ground),
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::Game)
+                    .with_system(set_coin_text)
+                    .with_system(position_pad),
+            );
     }
 }
 
