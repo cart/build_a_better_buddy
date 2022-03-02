@@ -16,12 +16,13 @@ struct MenuData {
     button_entity: Entity,
 }
 
-const NORMAL_BUTTON: Color = Color::rgb(0.4, 0.4, 0.8);
-const HOVERED_BUTTON: Color = Color::rgb(0.6, 0.6, 0.9);
+#[derive(Component)]
+pub struct PlayButton;
+
+pub const NORMAL_BUTTON: Color = Color::rgb(0.4, 0.4, 0.8);
+pub const HOVERED_BUTTON: Color = Color::rgb(0.6, 0.6, 0.9);
 
 fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // ui camera
-    commands.spawn_bundle(UiCameraBundle::default());
     let button_entity = commands
         .spawn_bundle(ButtonBundle {
             style: Style {
@@ -37,6 +38,7 @@ fn spawn_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             color: NORMAL_BUTTON.into(),
             ..Default::default()
         })
+        .insert(PlayButton)
         .with_children(|parent| {
             parent.spawn_bundle(TextBundle {
                 text: Text::with_section(
@@ -59,13 +61,13 @@ fn menu(
     mut state: ResMut<State<AppState>>,
     mut interaction_query: Query<
         (&Interaction, &mut UiColor),
-        (Changed<Interaction>, With<Button>),
+        (Changed<Interaction>, With<PlayButton>),
     >,
 ) {
     for (interaction, mut color) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
-                state.set(AppState::Game).unwrap();
+                state.set(AppState::Startup).unwrap();
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();

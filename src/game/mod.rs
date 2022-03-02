@@ -1,15 +1,15 @@
 pub mod animate;
-pub mod battle_ground;
+pub mod battle;
 pub mod buddy;
 pub mod counters;
+pub mod pad;
+pub mod shop;
 pub mod ui;
 
 use crate::{
     game::{
-        animate::AnimatePlugin,
-        battle_ground::{enter_battle_ground, position_pad, spawn_pad},
-        buddy::BuddyPlugin,
-        counters::{set_coin_text, Coins},
+        animate::AnimatePlugin, battle::BattlePlugin, buddy::BuddyPlugin, counters::Coins,
+        pad::spawn_pads, shop::ShopPlugin,
     },
     AppState,
 };
@@ -25,23 +25,20 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(BuddyPlugin)
+        app.insert_resource(Coins(20))
+            .add_plugin(BuddyPlugin)
             .add_plugin(AnimatePlugin)
-            .insert_resource(Coins(20))
-            .add_system_set(
-                SystemSet::on_enter(AppState::Game)
-                    .with_system(setup_game.exclusive_system().at_start())
-                    .with_system(enter_battle_ground),
-            )
-            .add_system_set(
-                SystemSet::on_update(AppState::Game)
-                    .with_system(set_coin_text)
-                    .with_system(position_pad),
-            );
+            .add_plugin(ShopPlugin)
+            .add_plugin(BattlePlugin)
+            .add_system_set(SystemSet::on_enter(AppState::Startup).with_system(setup_game));
     }
 }
 
-fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_game(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut state: ResMut<State<AppState>>,
+) {
     spawn_ui(&mut commands, &asset_server);
 
     commands.spawn_bundle(SpriteBundle {
@@ -50,13 +47,7 @@ fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..Default::default()
     });
 
-    spawn_pad(&mut commands, &asset_server, Side::Left, Slot::new(0));
-    spawn_pad(&mut commands, &asset_server, Side::Left, Slot::new(1));
-    spawn_pad(&mut commands, &asset_server, Side::Left, Slot::new(2));
-
-    spawn_pad(&mut commands, &asset_server, Side::Right, Slot::new(0));
-    spawn_pad(&mut commands, &asset_server, Side::Right, Slot::new(1));
-    spawn_pad(&mut commands, &asset_server, Side::Right, Slot::new(2));
+    spawn_pads(&mut commands, &asset_server);
 
     spawn_buddy(
         &mut commands,
@@ -125,4 +116,6 @@ fn setup_game(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         },
     );
+
+    state.set(AppState::Shop).unwrap();
 }

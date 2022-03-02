@@ -1,6 +1,5 @@
+use bevy::prelude::*;
 use std::{ops::Range, time::Duration};
-
-pub use bevy::prelude::*;
 
 pub struct AnimatePlugin;
 
@@ -29,6 +28,10 @@ impl AnimateRange {
         self.timer.set_elapsed(Duration::from_secs_f32(
             self.timer.duration().as_secs_f32() * percent,
         ));
+    }
+
+    pub fn reset(&mut self) {
+        self.timer.reset();
     }
 
     pub fn just_finished(&mut self) -> bool {

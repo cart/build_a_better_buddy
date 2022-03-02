@@ -1,13 +1,11 @@
-use bevy::prelude::*;
-
-use rand::Rng;
-use std::{f32::consts::PI, time::Duration};
-
 use crate::game::{
     animate::{AnimateRange, AnimateScale, Ease},
-    battle_ground::Pad,
+    pad::Pad,
     Z_BUDDY,
 };
+use bevy::prelude::*;
+use rand::Rng;
+use std::{f32::consts::PI, time::Duration};
 
 pub struct BuddyPlugin;
 
@@ -35,11 +33,10 @@ impl Default for Side {
 #[derive(Component, PartialEq, Eq)]
 pub struct Slot(pub usize);
 
-const MAX_BUDDIES_PER_SIDE: usize = 3;
-
 impl Slot {
+    pub const MAX_PER_SIDE: usize = 3;
     pub fn new(slot: usize) -> Self {
-        if slot >= MAX_BUDDIES_PER_SIDE {
+        if slot >= Self::MAX_PER_SIDE {
             panic!("invalid buddy slot {slot}");
         }
 
