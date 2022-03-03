@@ -11,7 +11,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.8, 0.8, 0.9)))
-        .add_state(AppState::Menu)
+        .add_state(AppState::Startup)
         .add_plugins(DefaultPlugins)
         .add_plugin(MenuPlugin)
         .add_plugin(GamePlugin)

@@ -1,7 +1,7 @@
 use crate::{
     game::{
         buddy::{spawn_buddy, Buddy, BuddyBundle, BuddyColor, BuddyFace, Side, Slot},
-        counters::set_coin_text,
+        counters::{set_coin_text, Coins},
         pad::{position_pad, spawn_pad},
         ui::UiRoot,
     },
@@ -71,7 +71,8 @@ pub fn enter_shop(
             side: Side::Shop,
             ..Default::default()
         };
-        spawn_buddy(&mut commands, &asset_server, buddy);
+        let buddy_id = spawn_buddy(&mut commands, &asset_server, buddy);
+        commands.entity(buddy_id).insert(Price(2));
     }
 }
 
@@ -152,10 +153,11 @@ pub fn battle_button(
 const BUDDY_EXTENTS: Vec2 = const_vec2!([65.0, 65.0]);
 
 fn buy_buddy(
+    mut coins: ResMut<Coins>,
     mouse_button: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     cameras: Query<(&Camera, &GlobalTransform)>,
-    mut buddies: Query<(&Transform, &mut Slot, &mut Side), With<Buddy>>,
+    mut buddies: Query<(&Transform, &mut Slot, &mut Side, &Price), With<Buddy>>,
 ) {
     let window = windows.get_primary().unwrap();
     let (camera, global_transform) = cameras
@@ -177,7 +179,7 @@ fn buy_buddy(
     if mouse_button.just_pressed(MouseButton::Left) {
         let occupied_slots = buddies
             .iter()
-            .filter_map(|(_, slot, side)| {
+            .filter_map(|(_, slot, side, _)| {
                 if *side == Side::Left {
                     Some(slot.0)
                 } else {
@@ -185,7 +187,7 @@ fn buy_buddy(
                 }
             })
             .collect::<Vec<_>>();
-        for (transform, mut slot, mut side) in buddies.iter_mut() {
+        for (transform, mut slot, mut side, price) in buddies.iter_mut() {
             if *side != Side::Shop {
                 continue;
             }
@@ -201,6 +203,7 @@ fn buy_buddy(
                 if let Some(open_slot) = open_slot {
                     *side = Side::Left;
                     *slot = Slot(open_slot);
+                    coins.0 -= price.0;
                 }
                 break;
             }
@@ -219,3 +222,6 @@ fn screen_to_world(
     let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
     world_pos.truncate()
 }
+
+#[derive(Component)]
+pub struct Price(usize);
