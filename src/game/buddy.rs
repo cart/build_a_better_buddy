@@ -16,11 +16,10 @@ pub struct BuddyPlugin;
 // without doing this for each relevant AppState, spawned buddies
 // will render as "white faceless monsters" at the center of the screen
 pub fn add_buddy_render_systems_to_set(set: SystemSet) -> SystemSet {
-    set.with_system(set_buddy_face)
-        .with_system(set_health_counter)
+    set.with_system(set_health_counter)
         .with_system(set_strength_counter)
         .with_system(move_buddy)
-        .with_system(wobble_buddy)
+        .with_system(set_buddy_color)
 }
 
 impl Plugin for BuddyPlugin {
@@ -28,10 +27,9 @@ impl Plugin for BuddyPlugin {
         app.init_resource::<OutlineTimer>()
             .add_system(update_outlines)
             .add_system(set_buddy_face)
+            .add_system(wobble_buddy)
             .add_system(set_health_counter)
             .add_system(set_strength_counter)
-            .add_system(move_buddy)
-            .add_system(wobble_buddy)
             .add_system_set(add_buddy_render_systems_to_set(SystemSet::new()))
             .add_system_set(add_buddy_render_systems_to_set(SystemSet::on_update(
                 AppState::Shop,
@@ -372,6 +370,18 @@ fn update_outlines(
     }
 }
 
+fn set_buddy_color(
+    parents: Query<&Parent>,
+    buddies: Query<&BuddyColor, With<Buddy>>,
+    mut bodies: Query<(&mut Sprite, &Parent), With<BuddyBodySprite>>,
+) {
+    for (mut sprite, parent) in bodies.iter_mut() {
+        let buddy_entity = parents.get(parent.0).unwrap().0;
+        if let Ok(color) = buddies.get(buddy_entity) {
+            sprite.color = color.0;
+        }
+    }
+}
 fn set_buddy_face(
     asset_server: Res<AssetServer>,
     time: Res<Time>,
@@ -381,7 +391,6 @@ fn set_buddy_face(
         (&mut Handle<Image>, &mut Sprite, &Parent),
         (With<BuddyFaceSprite>, Without<BuddyBodySprite>),
     >,
-    mut bodies: Query<(&mut Sprite, &Parent), With<BuddyBodySprite>>,
 ) {
     for (mut image, mut sprite, parent) in faces.iter_mut() {
         let buddy_entity = parents.get(parent.0).unwrap().0;
@@ -402,13 +411,6 @@ fn set_buddy_face(
             } else {
                 *image = asset_server.load(face.get_path());
             }
-        }
-    }
-
-    for (mut sprite, parent) in bodies.iter_mut() {
-        let buddy_entity = parents.get(parent.0).unwrap().0;
-        if let Ok((_, _, color, _)) = buddies.get(buddy_entity) {
-            sprite.color = color.0;
         }
     }
 }
