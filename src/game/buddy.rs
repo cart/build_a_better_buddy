@@ -1,12 +1,27 @@
-use crate::game::{
-    animate::{AnimateRange, AnimateScale, Ease},
-    Z_BUDDY,
+use crate::{
+    game::{
+        animate::{AnimateRange, AnimateScale, Ease},
+        Z_BUDDY,
+    },
+    AppState,
 };
 use bevy::{prelude::*, text::Text2dSize};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
 pub struct BuddyPlugin;
+
+// This is lame, but we need to duplicate "buddy rendering" systems
+// to ensure they run at the appropriate time on "same frame transitions"
+// without doing this for each relevant AppState, spawned buddies
+// will render as "white faceless monsters" at the center of the screen
+pub fn add_buddy_render_systems_to_set(set: SystemSet) -> SystemSet {
+    set.with_system(set_buddy_face)
+        .with_system(set_health_counter)
+        .with_system(set_strength_counter)
+        .with_system(move_buddy)
+        .with_system(wobble_buddy)
+}
 
 impl Plugin for BuddyPlugin {
     fn build(&self, app: &mut App) {
@@ -16,7 +31,14 @@ impl Plugin for BuddyPlugin {
             .add_system(set_health_counter)
             .add_system(set_strength_counter)
             .add_system(move_buddy)
-            .add_system(wobble_buddy);
+            .add_system(wobble_buddy)
+            .add_system_set(add_buddy_render_systems_to_set(SystemSet::new()))
+            .add_system_set(add_buddy_render_systems_to_set(SystemSet::on_update(
+                AppState::Shop,
+            )))
+            .add_system_set(add_buddy_render_systems_to_set(SystemSet::on_update(
+                AppState::Battle,
+            )));
     }
 }
 
