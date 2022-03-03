@@ -13,6 +13,8 @@ const PAD_SPACING: f32 = 180.0;
 const SIDE_SPACING: f32 = 120.0;
 const RIGHT_PAD_OUT: f32 = 1500.0;
 const PAD_CENTER_OFFSET: f32 = ((Slot::MAX_PER_SIDE - 1) as f32 * PAD_SPACING) / 2.0;
+const SHOP_PAD_OFFSET: f32 = -200.0;
+const SHOP_PAD_OUT: f32 = -800.0;
 
 #[derive(Bundle, Default)]
 pub struct PadBundle {
@@ -29,6 +31,8 @@ pub struct Pad {
     right_animate_out: AnimateRange,
     left_animate_center: AnimateRange,
     left_animate_side: AnimateRange,
+    shop_animate_in: AnimateRange,
+    shop_animate_out: AnimateRange,
 }
 
 impl Default for Pad {
@@ -56,6 +60,18 @@ impl Default for Pad {
                 Duration::from_secs_f32(2.0),
                 Ease::InOutCirc,
                 PAD_CENTER_OFFSET..-SIDE_SPACING,
+                false,
+            ),
+            shop_animate_out: AnimateRange::new(
+                Duration::from_secs_f32(1.5),
+                Ease::InOutCirc,
+                SHOP_PAD_OFFSET..SHOP_PAD_OUT,
+                false,
+            ),
+            shop_animate_in: AnimateRange::new(
+                Duration::from_secs_f32(1.5),
+                Ease::InOutCirc,
+                SHOP_PAD_OUT..SHOP_PAD_OFFSET,
                 false,
             ),
         };
@@ -99,46 +115,50 @@ pub fn position_pad(
             Side::Left => {
                 side_sign = -1.0;
                 if *state.current() == AppState::Battle {
-                    pad.left_animate_side.tick(time.delta())
+                    Vec2::new(pad.left_animate_side.tick(time.delta()), 0.0)
                 } else {
-                    pad.left_animate_center.tick(time.delta())
+                    Vec2::new(pad.left_animate_center.tick(time.delta()), 0.0)
                 }
             }
             Side::Right => {
                 side_sign = 1.0;
                 if *state.current() == AppState::Battle {
-                    pad.right_animate_in.tick(time.delta())
+                    Vec2::new(pad.right_animate_in.tick(time.delta()), 0.0)
                 } else {
-                    pad.right_animate_out.tick(time.delta())
+                    Vec2::new(pad.right_animate_out.tick(time.delta()), 0.0)
+                }
+            }
+            Side::Shop => {
+                side_sign = -1.0;
+                if *state.current() == AppState::Battle {
+                    Vec2::new(PAD_CENTER_OFFSET, pad.shop_animate_out.tick(time.delta()))
+                } else {
+                    Vec2::new(PAD_CENTER_OFFSET, pad.shop_animate_in.tick(time.delta()))
                 }
             }
         };
 
-        *transform =
-            Transform::from_xyz(slot.0 as f32 * PAD_SPACING * side_sign + offset, 0.0, 0.0);
+        let position = Vec2::new(slot.0 as f32 * PAD_SPACING * side_sign, 0.0) + offset;
+        *transform = Transform::from_translation(position.extend(0.0));
     }
 }
 
 pub fn pad_exit_battle(mut pads: Query<(&mut Pad, &Side)>) {
     for (mut pad, side) in pads.iter_mut() {
-        if *side == Side::Right {
-            pad.right_animate_out.reset();
-        }
-
-        if *side == Side::Left {
-            pad.left_animate_center.reset();
+        match side {
+            Side::Left => pad.left_animate_center.reset(),
+            Side::Right => pad.right_animate_out.reset(),
+            Side::Shop => pad.shop_animate_in.reset(),
         }
     }
 }
 
 pub fn pad_enter_battle(mut pads: Query<(&mut Pad, &Side)>) {
     for (mut pad, side) in pads.iter_mut() {
-        if *side == Side::Right {
-            pad.right_animate_in.reset();
-        }
-
-        if *side == Side::Left {
-            pad.left_animate_side.reset();
+        match side {
+            Side::Left => pad.left_animate_side.reset(),
+            Side::Right => pad.right_animate_in.reset(),
+            Side::Shop => pad.shop_animate_out.reset(),
         }
     }
 }

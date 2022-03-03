@@ -1,5 +1,10 @@
 use crate::{
-    game::{counters::set_coin_text, pad::position_pad, ui::UiRoot},
+    game::{
+        buddy::{spawn_buddy, Buddy, BuddyBundle, BuddyColor, BuddyFace, Side, Slot},
+        counters::set_coin_text,
+        pad::{position_pad, spawn_pad},
+        ui::UiRoot,
+    },
     menu::{HOVERED_BUTTON, NORMAL_BUTTON},
     AppState,
 };
@@ -9,7 +14,8 @@ pub struct ShopPlugin;
 
 impl Plugin for ShopPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(AppState::Shop).with_system(enter_shop))
+        app.add_system_set(SystemSet::on_enter(AppState::Startup).with_system(spawn_shop_base))
+            .add_system_set(SystemSet::on_enter(AppState::Shop).with_system(enter_shop))
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
                     .with_system(set_coin_text)
@@ -17,6 +23,17 @@ impl Plugin for ShopPlugin {
                     .with_system(battle_button),
             )
             .add_system_set(SystemSet::on_exit(AppState::Shop).with_system(exit_shop));
+    }
+}
+
+const SHOP_BUDDY_SLOTS: usize = 3;
+
+#[derive(Component)]
+pub struct ShopPad;
+
+pub fn spawn_shop_base(mut commands: Commands, asset_server: Res<AssetServer>) {
+    for i in 0..SHOP_BUDDY_SLOTS {
+        spawn_pad(&mut commands, &asset_server, Side::Shop, Slot::new(i));
     }
 }
 
@@ -28,10 +45,29 @@ pub fn enter_shop(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     ui_root: Query<Entity, With<UiRoot>>,
+    buddies: Query<(Entity, &Side), With<Buddy>>,
 ) {
     let ui_root = ui_root.single();
     let battle_button = spawn_battle_button(&mut commands, &asset_server, ui_root);
-    commands.insert_resource(ShopState { battle_button })
+    commands.insert_resource(ShopState { battle_button });
+
+    // clean up old shop entities
+    for (entity, side) in buddies.iter() {
+        if *side == Side::Shop {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+
+    for i in 0..SHOP_BUDDY_SLOTS {
+        let buddy = BuddyBundle {
+            color: BuddyColor::random(),
+            slot: Slot::new(i),
+            face: BuddyFace::random(),
+            side: Side::Shop,
+            ..Default::default()
+        };
+        spawn_buddy(&mut commands, &asset_server, buddy);
+    }
 }
 
 pub fn exit_shop(mut commands: Commands, shop_state: Res<ShopState>) {

@@ -1,9 +1,8 @@
 use crate::game::{
     animate::{AnimateRange, AnimateScale, Ease},
-    pad::Pad,
     Z_BUDDY,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, text::Text2dSize};
 use rand::Rng;
 use std::{f32::consts::PI, time::Duration};
 
@@ -14,7 +13,10 @@ impl Plugin for BuddyPlugin {
         app.init_resource::<OutlineTimer>()
             .add_system(update_outlines)
             .add_system(set_buddy_face)
-            .add_system(move_buddy);
+            .add_system(set_health_counter)
+            .add_system(set_strength_counter)
+            .add_system(move_buddy)
+            .add_system(wobble_buddy);
     }
 }
 
@@ -22,6 +24,7 @@ impl Plugin for BuddyPlugin {
 pub enum Side {
     Left,
     Right,
+    Shop,
 }
 
 impl Default for Side {
@@ -69,6 +72,15 @@ impl BuddyFace {
             BuddyFace::Neutral => "buddy/face/neutral.png",
         }
     }
+
+    pub fn random() -> BuddyFace {
+        let index = rand::thread_rng().gen_range(0..2);
+        match index {
+            0 => BuddyFace::Happy,
+            1 => BuddyFace::Neutral,
+            _ => panic!("this shouldn't happen"),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -106,16 +118,16 @@ impl BuddyBlink {
     }
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Copy, Clone)]
 pub struct BuddyColor(Color);
 
 impl BuddyColor {
-    pub fn red() -> Self {
-        Self(Color::hex("ad8988").unwrap())
-    }
-
-    pub fn blue() -> Self {
-        Self(Color::hex("8a89ae").unwrap())
+    const RED: BuddyColor = Self(Color::rgb(0.67, 0.53, 0.53));
+    const GREEN: BuddyColor = Self(Color::rgb(0.53, 0.67, 0.53));
+    const BLUE: BuddyColor = Self(Color::rgb(0.53, 0.53, 0.67));
+    const COLORS: &'static [BuddyColor] = &[Self::RED, Self::GREEN, Self::BLUE];
+    pub fn random() -> BuddyColor {
+        Self::COLORS[rand::thread_rng().gen_range(0..Self::COLORS.len())]
     }
 }
 
@@ -142,49 +154,172 @@ impl Default for OutlineTimer {
 #[derive(Bundle, Default)]
 pub struct BuddyBundle {
     pub buddy: Buddy,
+    pub health: Health,
+    pub strength: Strength,
     pub face: BuddyFace,
     pub blink: BuddyBlink,
     pub slot: Slot,
     pub color: BuddyColor,
-    pub wobble: BuddyWobble,
     pub side: Side,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
 }
 
 pub fn spawn_buddy(commands: &mut Commands, asset_server: &AssetServer, buddy: BuddyBundle) {
-    commands
-        .spawn_bundle(buddy)
-        .insert(AnimateScale::new(
-            Duration::from_secs_f32(0.6),
-            Ease::OutBack,
-            0.0..1.0,
-            false,
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("buddy/base.png"),
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY).with_scale(Vec3::splat(0.5)),
-                    ..Default::default()
-                })
-                .insert(BuddyBodySprite);
-            parent
-                .spawn_bundle(SpriteBundle {
-                    texture: asset_server.load("buddy/outline.png"),
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1)
-                        .with_scale(Vec3::splat(0.5)),
-                    ..Default::default()
-                })
-                .insert(BuddyOutline);
-            parent
-                .spawn_bundle(SpriteBundle {
-                    transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2)
-                        .with_scale(Vec3::splat(0.5)),
-                    ..Default::default()
-                })
-                .insert(BuddyFaceSprite);
-        });
+    commands.spawn_bundle(buddy).with_children(|parent| {
+        parent
+            .spawn_bundle(SpriteBundle::default())
+            .insert(BuddyWobble::default())
+            .insert(AnimateScale::new(
+                Duration::from_secs_f32(0.6),
+                Ease::OutBack,
+                0.0..1.0,
+                false,
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        texture: asset_server.load("buddy/base.png"),
+                        transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY)
+                            .with_scale(Vec3::splat(0.5)),
+                        ..Default::default()
+                    })
+                    .insert(BuddyBodySprite);
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        texture: asset_server.load("buddy/outline.png"),
+                        transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1)
+                            .with_scale(Vec3::splat(0.5)),
+                        ..Default::default()
+                    })
+                    .insert(BuddyOutline);
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2)
+                            .with_scale(Vec3::splat(0.5)),
+                        ..Default::default()
+                    })
+                    .insert(BuddyFaceSprite);
+            });
+        parent
+            .spawn_bundle(SpriteBundle {
+                transform: Transform::from_xyz(-40.0, -70.0, Z_BUDDY + 0.3)
+                    .with_scale(Vec3::splat(0.5)),
+                texture: asset_server.load("buddy/health.png"),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(Text2dBundle {
+                        text: Text::with_section(
+                            "0",
+                            TextStyle {
+                                font: asset_server.load("font/CaveatBrush-Regular.ttf"),
+                                font_size: 110.0,
+                                color: Color::hex("ececec").unwrap(),
+                            },
+                            TextAlignment {
+                                vertical: VerticalAlign::Bottom,
+                                horizontal: HorizontalAlign::Left,
+                            },
+                        ),
+                        text_2d_size: Text2dSize {
+                            size: Size::new(100., 100.),
+                        },
+                        transform: Transform::from_xyz(-20.0, -55.0, 0.1),
+                        ..Default::default()
+                    })
+                    .insert(HealthCounter);
+            });
+        parent
+            .spawn_bundle(SpriteBundle {
+                transform: Transform::from_xyz(40.0, -70.0, Z_BUDDY + 0.3)
+                    .with_scale(Vec3::splat(0.5)),
+                texture: asset_server.load("buddy/strength.png"),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(Text2dBundle {
+                        text: Text::with_section(
+                            "0",
+                            TextStyle {
+                                font: asset_server.load("font/CaveatBrush-Regular.ttf"),
+                                font_size: 110.0,
+                                color: Color::hex("ececec").unwrap(),
+                            },
+                            TextAlignment {
+                                vertical: VerticalAlign::Bottom,
+                                horizontal: HorizontalAlign::Left,
+                            },
+                        ),
+                        text_2d_size: Text2dSize {
+                            size: Size::new(100., 100.),
+                        },
+                        transform: Transform::from_xyz(-10.0, -55.0, 0.1),
+                        ..Default::default()
+                    })
+                    .insert(StrengthCounter);
+            });
+    });
+}
+
+#[derive(Component)]
+pub struct HealthCounter;
+
+#[derive(Component)]
+pub struct Health(Attribute);
+
+impl Default for Health {
+    fn default() -> Self {
+        Self(Attribute::new(1))
+    }
+}
+
+#[derive(Component)]
+pub struct Strength(Attribute);
+
+#[derive(Component)]
+pub struct StrengthCounter;
+
+impl Default for Strength {
+    fn default() -> Self {
+        Self(Attribute::new(1))
+    }
+}
+
+pub struct Attribute {
+    base: usize,
+    value: isize,
+}
+
+impl Attribute {
+    pub fn new(base: usize) -> Self {
+        Self {
+            base,
+            value: base as isize,
+        }
+    }
+
+    pub fn set_base(&mut self, base: usize) {
+        self.base = base;
+    }
+
+    pub fn reset(&mut self) {
+        self.value = self.base as isize;
+    }
+
+    pub fn value(&self) -> usize {
+        self.value.max(0) as usize
+    }
+
+    pub fn remove(&mut self, amount: usize) {
+        self.value -= amount as isize;
+    }
+
+    pub fn add(&mut self, amount: usize) {
+        self.value += amount as isize;
+    }
 }
 
 fn update_outlines(
@@ -211,6 +346,7 @@ fn update_outlines(
 fn set_buddy_face(
     asset_server: Res<AssetServer>,
     time: Res<Time>,
+    parents: Query<&Parent>,
     mut buddies: Query<(&Side, &BuddyFace, &BuddyColor, &mut BuddyBlink), With<Buddy>>,
     mut faces: Query<
         (&mut Handle<Image>, &mut Sprite, &Parent),
@@ -219,12 +355,16 @@ fn set_buddy_face(
     mut bodies: Query<(&mut Sprite, &Parent), With<BuddyBodySprite>>,
 ) {
     for (mut image, mut sprite, parent) in faces.iter_mut() {
-        if let Ok((side, face, _, mut blink)) = buddies.get_mut(parent.0) {
+        let buddy_entity = parents.get(parent.0).unwrap().0;
+        if let Ok((side, face, _, mut blink)) = buddies.get_mut(buddy_entity) {
             match side {
                 Side::Left => {
                     sprite.flip_x = false;
                 }
                 Side::Right => {
+                    sprite.flip_x = true;
+                }
+                Side::Shop => {
                     sprite.flip_x = true;
                 }
             }
@@ -237,7 +377,8 @@ fn set_buddy_face(
     }
 
     for (mut sprite, parent) in bodies.iter_mut() {
-        if let Ok((_, _, color, _)) = buddies.get(parent.0) {
+        let buddy_entity = parents.get(parent.0).unwrap().0;
+        if let Ok((_, _, color, _)) = buddies.get(buddy_entity) {
             sprite.color = color.0;
         }
     }
@@ -302,20 +443,46 @@ impl BuddyWobble {
 }
 
 fn move_buddy(
-    time: Res<Time>,
-    mut buddies: Query<
-        (&mut Transform, &Side, &Slot, &mut BuddyWobble),
-        (With<Buddy>, Without<Pad>),
-    >,
-    pads: Query<(&Transform, &Side, &Slot), (With<Pad>, Without<Buddy>)>,
+    mut buddies: Query<(&mut Transform, &Side, &Slot), With<Buddy>>,
+    pads: Query<(&Transform, &Side, &Slot), Without<Buddy>>,
 ) {
-    for (mut buddy_transform, buddy_side, buddy_slot, mut wobble) in buddies.iter_mut() {
+    for (mut buddy_transform, buddy_side, buddy_slot) in buddies.iter_mut() {
         for (pad_transform, pad_side, pad_slot) in pads.iter() {
             if buddy_side == pad_side && buddy_slot == pad_slot {
                 *buddy_transform = *pad_transform;
             }
         }
+    }
+}
 
-        *buddy_transform = *buddy_transform * wobble.wobble(time.delta());
+fn wobble_buddy(time: Res<Time>, mut buddies: Query<(&mut Transform, &mut BuddyWobble)>) {
+    for (mut transform, mut wobble) in buddies.iter_mut() {
+        *transform = wobble.wobble(time.delta());
+    }
+}
+
+fn set_health_counter(
+    parents: Query<&Parent>,
+    mut counters: Query<(&mut Text, &Parent), With<HealthCounter>>,
+    buddies: Query<&Health>,
+) {
+    for (mut text, parent) in counters.iter_mut() {
+        let buddy_entity = parents.get(parent.0).unwrap().0;
+        if let Ok(health) = buddies.get(buddy_entity) {
+            text.sections[0].value = health.0.value().to_string();
+        }
+    }
+}
+
+fn set_strength_counter(
+    parents: Query<&Parent>,
+    mut counters: Query<(&mut Text, &Parent), With<StrengthCounter>>,
+    buddies: Query<&Strength>,
+) {
+    for (mut text, parent) in counters.iter_mut() {
+        let buddy_entity = parents.get(parent.0).unwrap().0;
+        if let Ok(strength) = buddies.get(buddy_entity) {
+            text.sections[0].value = strength.0.value().to_string();
+        }
     }
 }
