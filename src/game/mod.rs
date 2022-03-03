@@ -14,7 +14,6 @@ use crate::{
     AppState,
 };
 use bevy::prelude::*;
-use buddy::{spawn_buddy, BuddyBundle, BuddyColor, BuddyFace, Side, Slot};
 use ui::spawn_ui;
 
 const Z_FOREGROUND: f32 = 10.0;

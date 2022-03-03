@@ -8,7 +8,11 @@ use crate::{
     menu::{HOVERED_BUTTON, NORMAL_BUTTON},
     AppState,
 };
-use bevy::prelude::*;
+use bevy::{
+    math::{const_vec2, Vec3Swizzles},
+    prelude::*,
+    render::camera::CameraPlugin,
+};
 
 pub struct ShopPlugin;
 
@@ -20,6 +24,7 @@ impl Plugin for ShopPlugin {
                 SystemSet::on_update(AppState::Shop)
                     .with_system(set_coin_text)
                     .with_system(position_pad)
+                    .with_system(buy_buddy)
                     .with_system(battle_button),
             )
             .add_system_set(SystemSet::on_exit(AppState::Shop).with_system(exit_shop));
@@ -142,4 +147,75 @@ pub fn battle_button(
             }
         }
     }
+}
+
+const BUDDY_EXTENTS: Vec2 = const_vec2!([65.0, 65.0]);
+
+fn buy_buddy(
+    mouse_button: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    cameras: Query<(&Camera, &GlobalTransform)>,
+    mut buddies: Query<(&Transform, &mut Slot, &mut Side), With<Buddy>>,
+) {
+    let window = windows.get_primary().unwrap();
+    let (camera, global_transform) = cameras
+        .iter()
+        .find(|(camera, _)| camera.name.as_deref() == Some(CameraPlugin::CAMERA_2D))
+        .unwrap();
+    let cursor_screen = if let Some(cursor) = window.cursor_position() {
+        cursor
+    } else {
+        return;
+    };
+
+    let cursor_world = screen_to_world(
+        Vec2::new(window.width(), window.height()),
+        cursor_screen,
+        camera,
+        global_transform,
+    );
+    if mouse_button.just_pressed(MouseButton::Left) {
+        let occupied_slots = buddies
+            .iter()
+            .filter_map(|(_, slot, side)| {
+                if *side == Side::Left {
+                    Some(slot.0)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        for (transform, mut slot, mut side) in buddies.iter_mut() {
+            if *side != Side::Shop {
+                continue;
+            }
+            let pos = transform.translation;
+            let min = pos.xy() - BUDDY_EXTENTS;
+            let max = pos.xy() + BUDDY_EXTENTS;
+            if cursor_world.x < max.x
+                && cursor_world.x > min.x
+                && cursor_world.y < max.y
+                && cursor_world.y > min.y
+            {
+                let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
+                if let Some(open_slot) = open_slot {
+                    *side = Side::Left;
+                    *slot = Slot(open_slot);
+                }
+                break;
+            }
+        }
+    }
+}
+
+fn screen_to_world(
+    window_size: Vec2,
+    screen_pos: Vec2,
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+) -> Vec2 {
+    let ndc = (screen_pos / window_size) * 2.0 - Vec2::ONE;
+    let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+    let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+    world_pos.truncate()
 }
