@@ -1,5 +1,6 @@
 use crate::{
     game::{
+        buddy::{spawn_buddy, Buddy, BuddyBundle, BuddyColor, BuddyFace, Side, Slot},
         pad::{pad_enter_battle, pad_exit_battle, position_pad},
         ui::UiRoot,
     },
@@ -38,10 +39,29 @@ pub fn enter_battle(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     ui_root: Query<Entity, With<UiRoot>>,
+    buddies: Query<(Entity, &Side), With<Buddy>>,
 ) {
     let ui_root = ui_root.single();
     let shop_button = spawn_shop_button(&mut commands, &asset_server, ui_root);
-    commands.insert_resource(BattleState { shop_button })
+    commands.insert_resource(BattleState { shop_button });
+
+    // clean up old battle entities
+    for (entity, side) in buddies.iter() {
+        if *side == Side::Right {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+
+    for i in 0..Slot::MAX_PER_SIDE {
+        let buddy = BuddyBundle {
+            color: BuddyColor::random(),
+            slot: Slot::new(i),
+            face: BuddyFace::random(),
+            side: Side::Right,
+            ..Default::default()
+        };
+        spawn_buddy(&mut commands, &asset_server, buddy);
+    }
 }
 
 pub fn exit_battle(mut commands: Commands, battle_state: Res<BattleState>) {
