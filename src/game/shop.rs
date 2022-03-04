@@ -43,6 +43,9 @@ const SHOP_BUDDY_SLOTS: usize = 3;
 #[derive(Component)]
 pub struct ShopPad;
 
+#[derive(Component)]
+pub struct Trash;
+
 pub fn spawn_shop_base(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in 0..SHOP_BUDDY_SLOTS {
         spawn_pad(&mut commands, &asset_server, Side::Shop, Slot::new(i));
@@ -51,6 +54,7 @@ pub fn spawn_shop_base(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 pub struct ShopState {
     battle_button: Entity,
+    trash: Entity,
 }
 
 pub fn enter_shop(
@@ -62,7 +66,19 @@ pub fn enter_shop(
 ) {
     let ui_root = ui_root.single();
     let battle_button = spawn_battle_button(&mut commands, &asset_server, ui_root);
-    commands.insert_resource(ShopState { battle_button });
+    let trash = commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("trash.png"),
+            transform: Transform::from_xyz(-450.0, 40.0, Z_BUDDY - 1.0)
+                .with_scale(Vec3::new(0.8, 0.8, 1.0)),
+            ..Default::default()
+        })
+        .insert(Trash)
+        .id();
+    commands.insert_resource(ShopState {
+        battle_button,
+        trash,
+    });
 
     // clean up old shop entities
     for (entity, side) in buddies.iter() {
@@ -88,6 +104,7 @@ pub fn exit_shop(mut commands: Commands, shop_state: Res<ShopState>) {
     commands
         .entity(shop_state.battle_button)
         .despawn_recursive();
+    commands.entity(shop_state.trash).despawn_recursive();
 }
 
 #[derive(Component)]
@@ -177,6 +194,7 @@ fn buy_buddy(
     windows: Res<Windows>,
     cameras: Query<(&Camera, &GlobalTransform)>,
     mut buddies: Query<(Entity, &Transform, &mut Slot, &mut Side, Option<&Price>), With<Buddy>>,
+    trash: Query<&Transform, (With<Trash>, Without<Buddy>)>,
     children: Query<&Children>,
     price_counters: Query<&PriceCounter>,
     price_icons: Query<&PriceIcon>,
@@ -251,12 +269,15 @@ fn buy_buddy(
                 if on_buddy(cursor_world, transform) && current != *buddy {
                     new_buddy_slot = Some(slot.base);
                     *slot = Slot::new(old_buddy_slot);
+                    break;
                 }
             }
 
             if let Some(new_buddy_slot) = new_buddy_slot {
                 let mut slot = buddies.get_component_mut::<Slot>(*buddy).unwrap();
                 *slot = Slot::new(new_buddy_slot);
+            } else if on_buddy(cursor_world, trash.single()) {
+                commands.entity(*buddy).despawn_recursive();
             }
         }
         *buddy_drag_state = BuddyDragState::None;
