@@ -240,7 +240,7 @@ pub fn battle(
             for (entity, _, _, _, _, mut offset, side, _) in buddies.iter_mut() {
                 if *left_died && *side == Side::Left {
                     if entity == *left_buddy {
-                        offset.0.scale = Vec3::new(1.0 - percent, 1.0 - percent, 1.0);
+                        offset.0.scale = Vec3::new(1.0 - percent, 1.0 - percent, 0.9);
                     } else {
                         offset.0.translation = Vec3::new(x, 0.0, 0.0);
                     }
@@ -248,7 +248,7 @@ pub fn battle(
 
                 if *right_died && *side == Side::Right {
                     if entity == *right_buddy {
-                        offset.0.scale = Vec3::new(1.0 - percent, 1.0 - percent, 1.0);
+                        offset.0.scale = Vec3::new(1.0 - percent, 1.0 - percent, 0.9);
                     } else {
                         offset.0.translation = Vec3::new(-x, 0.0, 0.0);
                     }
@@ -343,11 +343,13 @@ pub fn battle(
                     mut slot,
                 ) in buddies.iter_mut()
                 {
-                    buddy.alive = true;
-                    slot.reset();
-                    health.0.reset();
-                    strength.0.reset();
-                    *offset = Offset::default();
+                    if *side == Side::Left {
+                        buddy.alive = true;
+                        slot.reset();
+                        health.0.reset();
+                        strength.0.reset();
+                        *offset = Offset::default();
+                    }
                 }
                 state.set(AppState::Shop).unwrap();
             }

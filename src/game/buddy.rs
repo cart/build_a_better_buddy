@@ -11,18 +11,6 @@ use std::{f32::consts::PI, time::Duration};
 
 pub struct BuddyPlugin;
 
-// This is lame, but we need to duplicate "buddy rendering" systems
-// to ensure they run at the appropriate time on "same frame transitions"
-// without doing this for each relevant AppState, spawned buddies
-// will render as "white faceless monsters" at the center of the screen
-// dont put systems that tick in here or they might be double-ticked on a frame
-pub fn add_buddy_render_systems_to_set(set: SystemSet) -> SystemSet {
-    set.with_system(set_health_counter)
-        .with_system(set_strength_counter)
-        .with_system(move_buddy)
-        .with_system(set_buddy_color)
-}
-
 impl Plugin for BuddyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OutlineTimer>()
@@ -39,6 +27,18 @@ impl Plugin for BuddyPlugin {
                 AppState::Battle,
             )));
     }
+}
+
+// This is lame, but we need to duplicate "buddy rendering" systems
+// to ensure they run at the appropriate time on "same frame transitions"
+// without doing this for each relevant AppState, spawned buddies
+// will render as "white faceless monsters" at the center of the screen
+// dont put systems that tick in here or they might be double-ticked on a frame
+pub fn add_buddy_render_systems_to_set(set: SystemSet) -> SystemSet {
+    set.with_system(set_health_counter)
+        .with_system(set_strength_counter)
+        .with_system(move_buddy)
+        .with_system(set_buddy_color)
 }
 
 #[derive(Component, PartialEq, Eq)]
@@ -493,16 +493,31 @@ impl BuddyWobble {
 }
 
 fn move_buddy(
+    time: Res<Time>,
+    state: Res<State<AppState>>,
     mut buddies: Query<(&mut Transform, &Side, &Slot, &Offset), With<Buddy>>,
     pads: Query<(&Transform, &Side, &Slot), Without<Buddy>>,
 ) {
     for (mut buddy_transform, buddy_side, buddy_slot, offset) in buddies.iter_mut() {
         for (pad_transform, pad_side, pad_slot) in pads.iter() {
             if buddy_side == pad_side && buddy_slot.current == pad_slot.current {
-                *buddy_transform = *pad_transform * offset.0;
+                if *state.current() == AppState::Shop {
+                    *buddy_transform =
+                        lerp(*buddy_transform, *pad_transform, 5.0 * time.delta_seconds())
+                            * offset.0;
+                } else {
+                    *buddy_transform = *pad_transform * offset.0;
+                }
             }
         }
     }
+}
+
+fn lerp(start: Transform, end: Transform, amount: f32) -> Transform {
+    let amount = amount.min(1.0);
+    let mut transform = end;
+    transform.translation = start.translation + (end.translation - start.translation) * amount;
+    transform
 }
 
 fn wobble_buddy(time: Res<Time>, mut buddies: Query<(&mut Transform, &mut BuddyWobble)>) {

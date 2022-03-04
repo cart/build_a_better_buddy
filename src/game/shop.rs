@@ -78,6 +78,7 @@ pub fn enter_shop(
             face: BuddyFace::random(),
             side: Side::Shop,
             health: Health(Attribute::new(2)),
+            transform: Transform::from_xyz(0.0, -500.0, 0.0),
             ..Default::default()
         };
         let buddy_id = spawn_buddy(&mut commands, &asset_server, buddy);
