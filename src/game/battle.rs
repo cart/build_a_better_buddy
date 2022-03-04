@@ -59,7 +59,8 @@ pub enum Action {
     },
     ShowMessage {
         entity: Entity,
-        timer: Timer,
+        animate_in: AnimateRange,
+        animate_out: AnimateRange,
     },
     RestoreBuddies {
         animate: AnimateRange,
@@ -128,7 +129,7 @@ pub fn battle(
         &Side,
         &mut Slot,
     )>,
-    mut visibilities: Query<&mut Visibility>,
+    mut messages: Query<(&mut Visibility, &mut Transform), Without<Buddy>>,
 ) {
     let mut next_action = None;
     match &mut battle.action {
@@ -288,6 +289,14 @@ pub fn battle(
                     }
                 }
 
+                let animate_in =
+                    AnimateRange::new(Duration::from_secs_f32(1.0), Ease::OutBack, 0.0..1.0, false);
+                let animate_out = AnimateRange::new(
+                    Duration::from_secs_f32(1.0),
+                    Ease::InOutCirc,
+                    1.0..0.0,
+                    false,
+                );
                 let action = match (left_alive, right_alive) {
                     (true, true) => Action::StartAttack,
                     (true, false) => {
@@ -295,36 +304,50 @@ pub fn battle(
                         coins.0 += 5;
                         Action::ShowMessage {
                             entity: battle_messages.you_win,
-                            timer: Timer::from_seconds(2.0, false),
+                            animate_in,
+                            animate_out,
                         }
                     }
                     (false, true) => Action::ShowMessage {
                         entity: battle_messages.you_lose,
-                        timer: Timer::from_seconds(2.0, false),
+                        animate_in,
+                        animate_out,
                     },
                     (false, false) => Action::ShowMessage {
                         entity: battle_messages.you_tie,
-                        timer: Timer::from_seconds(2.0, false),
+                        animate_in,
+                        animate_out,
                     },
                 };
                 next_action = Some(action);
             }
         }
-        Action::ShowMessage { entity, timer } => {
+        Action::ShowMessage {
+            entity,
+            animate_in,
+            animate_out,
+        } => {
             let mut visible = true;
-            if timer.tick(time.delta()).just_finished() {
-                next_action = Some(Action::RestoreBuddies {
-                    animate: AnimateRange::new(
-                        Duration::from_secs_f32(1.0),
-                        Ease::InOutCirc,
-                        0.0..1.0,
-                        false,
-                    ),
-                });
-                visible = false;
-            }
-            if let Ok(mut visibility) = visibilities.get_mut(*entity) {
+            let x = if !animate_in.finished() {
+                animate_in.tick(time.delta())
+            } else {
+                let x = animate_out.tick(time.delta());
+                if animate_out.just_finished() {
+                    next_action = Some(Action::RestoreBuddies {
+                        animate: AnimateRange::new(
+                            Duration::from_secs_f32(1.0),
+                            Ease::InOutCirc,
+                            0.0..1.0,
+                            false,
+                        ),
+                    });
+                    visible = false;
+                }
+                x
+            };
+            if let Ok((mut visibility, mut transform)) = messages.get_mut(*entity) {
                 visibility.is_visible = visible;
+                transform.scale = Vec3::new(x, x, 1.0);
             }
         }
         Action::RestoreBuddies { animate } => {
