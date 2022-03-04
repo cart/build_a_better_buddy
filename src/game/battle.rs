@@ -9,7 +9,6 @@ use crate::{
         },
         counters::{Coins, Trophies},
         pad::{pad_enter_battle, pad_exit_battle, position_pad, PAD_SPACING},
-        ui::UiRoot,
         BattleMessages,
     },
     AppState,
@@ -292,7 +291,7 @@ pub fn battle(
                 let animate_in =
                     AnimateRange::new(Duration::from_secs_f32(1.0), Ease::OutBack, 0.0..1.0, false);
                 let animate_out = AnimateRange::new(
-                    Duration::from_secs_f32(1.0),
+                    Duration::from_secs_f32(0.6),
                     Ease::InOutCirc,
                     1.0..0.0,
                     false,
@@ -335,7 +334,7 @@ pub fn battle(
                 if animate_out.just_finished() {
                     next_action = Some(Action::RestoreBuddies {
                         animate: AnimateRange::new(
-                            Duration::from_secs_f32(1.0),
+                            Duration::from_secs_f32(0.5),
                             Ease::InOutCirc,
                             0.0..1.0,
                             false,
@@ -351,20 +350,11 @@ pub fn battle(
             }
         }
         Action::RestoreBuddies { animate } => {
-            let x = animate.tick(time.delta());
-            // let percent = animate_shift.percent();
+            animate.tick(time.delta());
 
             if animate.just_finished() {
-                for (
-                    entity,
-                    mut buddy,
-                    mut health,
-                    mut strength,
-                    mut transform,
-                    mut offset,
-                    side,
-                    mut slot,
-                ) in buddies.iter_mut()
+                for (_, mut buddy, mut health, mut strength, _, mut offset, side, mut slot) in
+                    buddies.iter_mut()
                 {
                     if *side == Side::Left {
                         buddy.alive = true;

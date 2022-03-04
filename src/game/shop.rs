@@ -155,22 +155,11 @@ fn spawn_battle_button(
 
 pub fn battle_button(
     mut state: ResMut<State<AppState>>,
-    mut interaction_query: Query<
-        (&Interaction, &mut UiColor),
-        (Changed<Interaction>, With<BattleButton>),
-    >,
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<BattleButton>)>,
 ) {
-    for (interaction, mut color) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Clicked => {
-                state.set(AppState::Battle).unwrap();
-            }
-            Interaction::Hovered => {
-                // *color = HOVERED_BUTTON.into();
-            }
-            Interaction::None => {
-                // *color = NORMAL_BUTTON.into();
-            }
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Clicked {
+            state.set(AppState::Battle).unwrap();
         }
     }
 }
@@ -321,10 +310,10 @@ fn remove_price(
     // commands.entity(entity).remove::<Price>();
     if let Ok(children) = children.get(entity) {
         for child in children.iter().copied() {
-            if let Ok(_) = price_icons.get(child) {
+            if price_icons.get(child).is_ok() {
                 commands.entity(child).despawn();
             }
-            if let Ok(_) = price_counters.get(child) {
+            if price_counters.get(child).is_ok() {
                 commands.entity(child).despawn();
             }
         }

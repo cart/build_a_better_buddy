@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity, clippy::too_many_arguments)]
+
 mod game;
 mod menu;
 

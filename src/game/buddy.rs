@@ -347,9 +347,9 @@ impl Attribute {
         }
     }
 
-    pub fn set_base(&mut self, base: usize) {
-        self.base = base;
-    }
+    // pub fn set_base(&mut self, base: usize) {
+    //     self.base = base;
+    // }
 
     pub fn reset(&mut self) {
         self.value = self.base as isize;
@@ -363,9 +363,9 @@ impl Attribute {
         self.value -= amount as isize;
     }
 
-    pub fn add(&mut self, amount: usize) {
-        self.value += amount as isize;
-    }
+    // pub fn add(&mut self, amount: usize) {
+    //     self.value += amount as isize;
+    // }
 }
 
 fn update_outlines(
