@@ -30,12 +30,20 @@ impl AnimateRange {
         ));
     }
 
+    pub fn percent(&mut self) -> f32 {
+        self.timer.percent()
+    }
+
     pub fn reset(&mut self) {
         self.timer.reset();
     }
 
     pub fn just_finished(&mut self) -> bool {
         self.timer.just_finished()
+    }
+
+    pub fn finished(&mut self) -> bool {
+        self.timer.finished()
     }
 
     pub fn tick(&mut self, delta: Duration) -> f32 {

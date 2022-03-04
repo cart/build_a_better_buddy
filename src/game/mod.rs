@@ -19,6 +19,7 @@ use ui::spawn_ui;
 const Z_FOREGROUND: f32 = 10.0;
 const Z_PAD: f32 = 11.0;
 const Z_BUDDY: f32 = 20.0;
+const Z_MESSAGE: f32 = 300.0;
 
 pub struct GamePlugin;
 
@@ -33,6 +34,12 @@ impl Plugin for GamePlugin {
     }
 }
 
+pub struct BattleMessages {
+    you_win: Entity,
+    you_lose: Entity,
+    you_tie: Entity,
+}
+
 pub fn setup_game(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -42,11 +49,42 @@ pub fn setup_game(
 
     commands.spawn_bundle(SpriteBundle {
         texture: asset_server.load("foreground.png"),
-        transform: Transform::from_xyz(0.0, 0.0, Z_FOREGROUND),
+        transform: Transform::from_xyz(0.0, 100.0, Z_FOREGROUND),
         ..Default::default()
     });
 
     spawn_pads(&mut commands, &asset_server);
 
+    let you_win = commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("you_win.png"),
+            visibility: Visibility { is_visible: false },
+            transform: Transform::from_xyz(0.0, 100.0, Z_MESSAGE),
+            ..Default::default()
+        })
+        .id();
+
+    let you_lose = commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("you_lose.png"),
+            visibility: Visibility { is_visible: false },
+            transform: Transform::from_xyz(0.0, 100.0, Z_MESSAGE),
+            ..Default::default()
+        })
+        .id();
+
+    let you_tie = commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("you_tie.png"),
+            visibility: Visibility { is_visible: false },
+            transform: Transform::from_xyz(0.0, 200.0, Z_MESSAGE),
+            ..Default::default()
+        })
+        .id();
+    commands.insert_resource(BattleMessages {
+        you_win,
+        you_lose,
+        you_tie,
+    });
     state.set(AppState::Shop).unwrap();
 }

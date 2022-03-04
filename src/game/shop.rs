@@ -1,7 +1,9 @@
 use crate::{
     game::{
-        buddy::{spawn_buddy, Buddy, BuddyBundle, BuddyColor, BuddyFace, Side, Slot},
-        counters::{set_coin_text, Coins},
+        buddy::{
+            spawn_buddy, Attribute, Buddy, BuddyBundle, BuddyColor, BuddyFace, Health, Side, Slot,
+        },
+        counters::{set_coin_text, set_trophies_text, Coins, Trophies},
         pad::{position_pad, spawn_pad},
         ui::UiRoot,
         Z_BUDDY,
@@ -20,11 +22,14 @@ pub struct ShopPlugin;
 
 impl Plugin for ShopPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(AppState::Startup).with_system(spawn_shop_base))
+        app.insert_resource(Coins(6))
+            .insert_resource(Trophies { won: 0, rounds: 0 })
+            .add_system_set(SystemSet::on_enter(AppState::Startup).with_system(spawn_shop_base))
             .add_system_set(SystemSet::on_enter(AppState::Shop).with_system(enter_shop))
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
                     .with_system(set_coin_text)
+                    .with_system(set_trophies_text)
                     .with_system(position_pad)
                     .with_system(buy_buddy)
                     .with_system(update_price_counter)
@@ -72,6 +77,7 @@ pub fn enter_shop(
             slot: Slot::new(i),
             face: BuddyFace::random(),
             side: Side::Shop,
+            health: Health(Attribute::new(2)),
             ..Default::default()
         };
         let buddy_id = spawn_buddy(&mut commands, &asset_server, buddy);
@@ -203,7 +209,7 @@ fn buy_buddy(
             .iter()
             .filter_map(|(_, _, slot, side, _)| {
                 if *side == Side::Left {
-                    Some(slot.0)
+                    Some(slot.current)
                 } else {
                     None
                 }
@@ -224,7 +230,7 @@ fn buy_buddy(
                 let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
                 if let Some(open_slot) = open_slot {
                     *side = Side::Left;
-                    *slot = Slot(open_slot);
+                    *slot = Slot::new(open_slot);
                     coins.0 -= price.unwrap().0;
                     remove_price(
                         &mut commands,

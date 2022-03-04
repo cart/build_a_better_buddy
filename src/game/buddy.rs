@@ -54,17 +54,23 @@ impl Default for Side {
     }
 }
 
-#[derive(Component, PartialEq, Eq)]
-pub struct Slot(pub usize);
+#[derive(Component)]
+pub struct Slot {
+    pub current: usize,
+    pub base: usize,
+}
 
 impl Slot {
     pub const MAX_PER_SIDE: usize = 3;
     pub fn new(slot: usize) -> Self {
-        if slot >= Self::MAX_PER_SIDE {
-            panic!("invalid buddy slot {slot}");
+        Self {
+            current: slot,
+            base: slot,
         }
+    }
 
-        Self(slot)
+    pub fn reset(&mut self) {
+        self.current = self.base;
     }
 }
 
@@ -74,8 +80,16 @@ impl Default for Slot {
     }
 }
 
-#[derive(Component, Default)]
-pub struct Buddy;
+#[derive(Component)]
+pub struct Buddy {
+    pub alive: bool,
+}
+
+impl Default for Buddy {
+    fn default() -> Self {
+        Self { alive: true }
+    }
+}
 
 #[derive(Component, Default)]
 pub struct BuddyOutline;
@@ -164,6 +178,9 @@ pub struct BuddyFaceSprite;
 #[derive(Component)]
 pub struct BuddyBodySprite;
 
+#[derive(Component, Default)]
+pub struct Offset(pub Transform);
+
 pub struct OutlineTimer(Timer);
 
 impl Default for OutlineTimer {
@@ -179,6 +196,7 @@ pub struct BuddyBundle {
     pub strength: Strength,
     pub face: BuddyFace,
     pub blink: BuddyBlink,
+    pub position_offset: Offset,
     pub slot: Slot,
     pub color: BuddyColor,
     pub side: Side,
@@ -296,7 +314,7 @@ pub fn spawn_buddy(
 pub struct HealthCounter;
 
 #[derive(Component)]
-pub struct Health(Attribute);
+pub struct Health(pub Attribute);
 
 impl Default for Health {
     fn default() -> Self {
@@ -305,7 +323,7 @@ impl Default for Health {
 }
 
 #[derive(Component)]
-pub struct Strength(Attribute);
+pub struct Strength(pub Attribute);
 
 #[derive(Component)]
 pub struct StrengthCounter;
@@ -475,13 +493,13 @@ impl BuddyWobble {
 }
 
 fn move_buddy(
-    mut buddies: Query<(&mut Transform, &Side, &Slot), With<Buddy>>,
+    mut buddies: Query<(&mut Transform, &Side, &Slot, &Offset), With<Buddy>>,
     pads: Query<(&Transform, &Side, &Slot), Without<Buddy>>,
 ) {
-    for (mut buddy_transform, buddy_side, buddy_slot) in buddies.iter_mut() {
+    for (mut buddy_transform, buddy_side, buddy_slot, offset) in buddies.iter_mut() {
         for (pad_transform, pad_side, pad_slot) in pads.iter() {
-            if buddy_side == pad_side && buddy_slot == pad_slot {
-                *buddy_transform = *pad_transform;
+            if buddy_side == pad_side && buddy_slot.current == pad_slot.current {
+                *buddy_transform = *pad_transform * offset.0;
             }
         }
     }

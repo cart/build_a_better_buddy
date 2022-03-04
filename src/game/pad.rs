@@ -9,7 +9,7 @@ use crate::{
 use bevy::prelude::*;
 use std::time::Duration;
 
-const PAD_SPACING: f32 = 180.0;
+pub const PAD_SPACING: f32 = 180.0;
 const SIDE_SPACING: f32 = 120.0;
 const RIGHT_PAD_OUT: f32 = 1500.0;
 const PAD_CENTER_OFFSET: f32 = ((Slot::MAX_PER_SIDE - 1) as f32 * PAD_SPACING) / 2.0;
@@ -138,7 +138,7 @@ pub fn position_pad(
             }
         };
 
-        let position = Vec2::new(slot.0 as f32 * PAD_SPACING * side_sign, 0.0) + offset;
+        let position = Vec2::new(slot.current as f32 * PAD_SPACING * side_sign, 0.0) + offset;
         *transform = Transform::from_translation(position.extend(0.0));
     }
 }

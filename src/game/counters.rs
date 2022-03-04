@@ -61,6 +61,18 @@ pub fn spawn_coins_element(commands: &mut ChildBuilder, asset_server: &AssetServ
         });
 }
 
+#[derive(Default)]
+pub struct Trophies {
+    pub won: usize,
+    pub rounds: usize,
+}
+
+pub fn set_trophies_text(trophies: Res<Trophies>, mut texts: Query<&mut Text, With<TrophyText>>) {
+    for mut text in texts.iter_mut() {
+        text.sections[0].value = format!("{}/{}", trophies.won, trophies.rounds);
+    }
+}
+
 #[derive(Component)]
 pub struct TrophyText;
 
@@ -68,7 +80,7 @@ pub fn spawn_trophies_element(commands: &mut ChildBuilder, asset_server: &AssetS
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(150.0), Val::Px(74.0)),
+                size: Size::new(Val::Px(300.0), Val::Px(74.0)),
                 margin: Rect {
                     top: Val::Px(4.0),
                     left: Val::Px(4.0),
