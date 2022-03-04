@@ -27,7 +27,11 @@ impl Plugin for BattlePlugin {
                     .with_system(battle)
                     .with_system(position_pad),
             )
-            .add_system_set(SystemSet::on_exit(AppState::Battle).with_system(pad_exit_battle));
+            .add_system_set(
+                SystemSet::on_exit(AppState::Battle)
+                    .with_system(pad_exit_battle)
+                    .with_system(exit_battle),
+            );
     }
 }
 
@@ -106,6 +110,15 @@ pub fn enter_battle(
     battle.action = Action::Begin {
         timer: Timer::from_seconds(2.0, false),
     };
+}
+
+pub fn exit_battle(mut commands: Commands, buddies: Query<(Entity, &Side), With<Buddy>>) {
+    // clean up old battle entities
+    for (entity, side) in buddies.iter() {
+        if *side == Side::Right {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
 }
 
 pub fn battle(

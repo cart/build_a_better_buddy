@@ -100,7 +100,22 @@ pub fn enter_shop(
     }
 }
 
-pub fn exit_shop(mut commands: Commands, shop_state: Res<ShopState>) {
+pub fn exit_shop(
+    mut commands: Commands,
+    shop_state: Res<ShopState>,
+    mut buddies: Query<(Entity, &mut Slot, &Side), With<Buddy>>,
+) {
+    let mut left_slots = Vec::new();
+    for (entity, slot, side) in buddies.iter_mut() {
+        if *side == Side::Left {
+            left_slots.push((entity, slot.base));
+        }
+    }
+    left_slots.sort_by_key(|(_, slot)| *slot);
+    for (new_slot, (entity, _slot)) in left_slots.iter().enumerate() {
+        let mut slot = buddies.get_component_mut::<Slot>(*entity).unwrap();
+        *slot = Slot::new(new_slot);
+    }
     commands
         .entity(shop_state.battle_button)
         .despawn_recursive();
@@ -241,18 +256,20 @@ fn buy_buddy(
                         }
                     }
                     Side::Shop => {
-                        let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
-                        if let Some(open_slot) = open_slot {
-                            *side = Side::Left;
-                            *slot = Slot::new(open_slot);
-                            coins.0 -= price.unwrap().0;
-                            remove_price(
-                                &mut commands,
-                                entity,
-                                &children,
-                                &price_counters,
-                                &price_icons,
-                            )
+                        if coins.0 >= price.unwrap().0 {
+                            let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
+                            if let Some(open_slot) = open_slot {
+                                *side = Side::Left;
+                                *slot = Slot::new(open_slot);
+                                coins.0 -= price.unwrap().0;
+                                remove_price(
+                                    &mut commands,
+                                    entity,
+                                    &children,
+                                    &price_counters,
+                                    &price_icons,
+                                )
+                            }
                         }
                     }
                     Side::Right => error!("how did this even happen"),
@@ -265,8 +282,8 @@ fn buy_buddy(
         if let BuddyDragState::Dragging { buddy, .. } = &*buddy_drag_state {
             let old_buddy_slot = buddies.get_component::<Slot>(*buddy).unwrap().current;
             let mut new_buddy_slot = None;
-            for (current, transform, mut slot, _, _) in buddies.iter_mut() {
-                if on_buddy(cursor_world, transform) && current != *buddy {
+            for (current, transform, mut slot, side, _) in buddies.iter_mut() {
+                if on_buddy(cursor_world, transform) && current != *buddy && *side == Side::Left {
                     new_buddy_slot = Some(slot.base);
                     *slot = Slot::new(old_buddy_slot);
                     break;
