@@ -1,6 +1,7 @@
 use crate::{
     game::{
         animate::{AnimateRange, AnimateScale, Ease},
+        shop::BuddyDragState,
         Z_BUDDY,
     },
     AppState,
@@ -530,6 +531,7 @@ impl BuddyWobble {
 fn move_buddy(
     time: Res<Time>,
     state: Res<State<AppState>>,
+    buddy_drag_state: Res<BuddyDragState>,
     mut buddies: Query<(&mut Transform, &Side, &Slot, &Offset), With<Buddy>>,
     pads: Query<(&Transform, &Side, &Slot), Without<Buddy>>,
 ) {
@@ -544,6 +546,13 @@ fn move_buddy(
                     *buddy_transform = *pad_transform * offset.0;
                 }
             }
+        }
+    }
+
+    if let BuddyDragState::Dragging { buddy, offset } = &*buddy_drag_state {
+        if let Ok((mut transform, _, _, _)) = buddies.get_mut(*buddy) {
+            transform.translation.x = offset.x;
+            transform.translation.y = offset.y;
         }
     }
 }

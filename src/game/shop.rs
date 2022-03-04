@@ -22,6 +22,7 @@ impl Plugin for ShopPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Coins(6))
             .insert_resource(Trophies { won: 0, rounds: 0 })
+            .insert_resource(BuddyDragState::None)
             .add_system_set(SystemSet::on_enter(AppState::Startup).with_system(spawn_shop_base))
             .add_system_set(SystemSet::on_enter(AppState::Shop).with_system(enter_shop))
             .add_system_set(
@@ -163,9 +164,15 @@ pub fn battle_button(
 
 const BUDDY_EXTENTS: Vec2 = const_vec2!([65.0, 65.0]);
 
+pub enum BuddyDragState {
+    Dragging { buddy: Entity, offset: Vec2 },
+    None,
+}
+
 fn buy_buddy(
     mut commands: Commands,
     mut coins: ResMut<Coins>,
+    mut buddy_drag_state: ResMut<BuddyDragState>,
     mouse_button: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     cameras: Query<(&Camera, &GlobalTransform)>,
@@ -191,6 +198,10 @@ fn buy_buddy(
         camera,
         global_transform,
     );
+
+    if let BuddyDragState::Dragging { offset, .. } = &mut *buddy_drag_state {
+        *offset = cursor_world;
+    }
     if mouse_button.just_pressed(MouseButton::Left) {
         let occupied_slots = buddies
             .iter()
@@ -203,34 +214,60 @@ fn buy_buddy(
             })
             .collect::<Vec<_>>();
         for (entity, transform, mut slot, mut side, price) in buddies.iter_mut() {
-            if *side != Side::Shop {
-                continue;
-            }
-            let pos = transform.translation;
-            let min = pos.xy() - BUDDY_EXTENTS;
-            let max = pos.xy() + BUDDY_EXTENTS;
-            if cursor_world.x < max.x
-                && cursor_world.x > min.x
-                && cursor_world.y < max.y
-                && cursor_world.y > min.y
-            {
-                let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
-                if let Some(open_slot) = open_slot {
-                    *side = Side::Left;
-                    *slot = Slot::new(open_slot);
-                    coins.0 -= price.unwrap().0;
-                    remove_price(
-                        &mut commands,
-                        entity,
-                        &children,
-                        &price_counters,
-                        &price_icons,
-                    )
+            if on_buddy(cursor_world, transform) {
+                match *side {
+                    Side::Left => {
+                        *buddy_drag_state = BuddyDragState::Dragging {
+                            buddy: entity,
+                            offset: cursor_world,
+                        }
+                    }
+                    Side::Shop => {
+                        let open_slot = (0..3).find(|i| !occupied_slots.contains(i));
+                        if let Some(open_slot) = open_slot {
+                            *side = Side::Left;
+                            *slot = Slot::new(open_slot);
+                            coins.0 -= price.unwrap().0;
+                            remove_price(
+                                &mut commands,
+                                entity,
+                                &children,
+                                &price_counters,
+                                &price_icons,
+                            )
+                        }
+                    }
+                    Side::Right => error!("how did this even happen"),
                 }
                 break;
             }
         }
     }
+    if mouse_button.just_released(MouseButton::Left) {
+        if let BuddyDragState::Dragging { buddy, .. } = &*buddy_drag_state {
+            let old_buddy_slot = buddies.get_component::<Slot>(*buddy).unwrap().current;
+            let mut new_buddy_slot = None;
+            for (current, transform, mut slot, _, _) in buddies.iter_mut() {
+                if on_buddy(cursor_world, transform) && current != *buddy {
+                    new_buddy_slot = Some(slot.base);
+                    *slot = Slot::new(old_buddy_slot);
+                }
+            }
+
+            if let Some(new_buddy_slot) = new_buddy_slot {
+                let mut slot = buddies.get_component_mut::<Slot>(*buddy).unwrap();
+                *slot = Slot::new(new_buddy_slot);
+            }
+        }
+        *buddy_drag_state = BuddyDragState::None;
+    }
+}
+
+fn on_buddy(position: Vec2, buddy_transform: &Transform) -> bool {
+    let pos = buddy_transform.translation;
+    let min = pos.xy() - BUDDY_EXTENTS;
+    let max = pos.xy() + BUDDY_EXTENTS;
+    position.x < max.x && position.x > min.x && position.y < max.y && position.y > min.y
 }
 
 fn screen_to_world(
