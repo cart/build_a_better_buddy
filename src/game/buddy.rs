@@ -15,6 +15,7 @@ pub struct BuddyPlugin;
 // to ensure they run at the appropriate time on "same frame transitions"
 // without doing this for each relevant AppState, spawned buddies
 // will render as "white faceless monsters" at the center of the screen
+// dont put systems that tick in here or they might be double-ticked on a frame
 pub fn add_buddy_render_systems_to_set(set: SystemSet) -> SystemSet {
     set.with_system(set_health_counter)
         .with_system(set_strength_counter)
