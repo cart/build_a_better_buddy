@@ -80,6 +80,147 @@ impl Default for Slot {
     }
 }
 
+pub struct BuddyTemplate {
+    face: BuddyFace,
+    health: usize,
+    strength: usize,
+    color: BuddyColor,
+}
+
+impl BuddyTemplate {
+    pub fn random_for_round(round: usize) -> Self {
+        let mut rng = rand::thread_rng();
+        let strength = rng.gen_range(1..(2 + round));
+        let health = rng.gen_range(1..(2 + round));
+        Self {
+            face: BuddyFace::random(),
+            health,
+            strength,
+            color: BuddyColor::random(),
+        }
+    }
+    // pub fn base_cost(&self) -> usize {
+    //     self.health + self.strength
+    // }
+    pub fn spawn(
+        self,
+        commands: &mut Commands,
+        asset_server: &AssetServer,
+        slot: usize,
+        side: Side,
+        transform: Transform,
+    ) -> Entity {
+        commands
+            .spawn_bundle(BuddyBundle {
+                color: self.color,
+                face: self.face,
+                health: Health(Attribute::new(self.health)),
+                strength: Strength(Attribute::new(self.strength)),
+                side,
+                slot: Slot::new(slot),
+                transform,
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(SpriteBundle::default())
+                    .insert(BuddyWobble::default())
+                    .insert(AnimateScale::new(
+                        Duration::from_secs_f32(0.6),
+                        Ease::OutBack,
+                        0.0..1.0,
+                        false,
+                    ))
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                texture: asset_server.load("buddy/base.png"),
+                                transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY)
+                                    .with_scale(Vec3::splat(0.5)),
+                                ..Default::default()
+                            })
+                            .insert(BuddyBodySprite);
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                texture: asset_server.load("buddy/outline.png"),
+                                transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1)
+                                    .with_scale(Vec3::splat(0.5)),
+                                ..Default::default()
+                            })
+                            .insert(BuddyOutline);
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2)
+                                    .with_scale(Vec3::splat(0.5)),
+                                ..Default::default()
+                            })
+                            .insert(BuddyFaceSprite);
+                    });
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        transform: Transform::from_xyz(-40.0, -70.0, Z_BUDDY + 0.3)
+                            .with_scale(Vec3::splat(0.5)),
+                        texture: asset_server.load("buddy/health.png"),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(Text2dBundle {
+                                text: Text::with_section(
+                                    "0",
+                                    TextStyle {
+                                        font: asset_server.load("font/CaveatBrush-Regular.ttf"),
+                                        font_size: 110.0,
+                                        color: Color::hex("ececec").unwrap(),
+                                    },
+                                    TextAlignment {
+                                        vertical: VerticalAlign::Bottom,
+                                        horizontal: HorizontalAlign::Left,
+                                    },
+                                ),
+                                text_2d_size: Text2dSize {
+                                    size: Size::new(100., 100.),
+                                },
+                                transform: Transform::from_xyz(-20.0, -55.0, 0.1),
+                                ..Default::default()
+                            })
+                            .insert(HealthCounter);
+                    });
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        transform: Transform::from_xyz(40.0, -70.0, Z_BUDDY + 0.3)
+                            .with_scale(Vec3::splat(0.5)),
+                        texture: asset_server.load("buddy/strength.png"),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(Text2dBundle {
+                                text: Text::with_section(
+                                    "0",
+                                    TextStyle {
+                                        font: asset_server.load("font/CaveatBrush-Regular.ttf"),
+                                        font_size: 110.0,
+                                        color: Color::hex("ececec").unwrap(),
+                                    },
+                                    TextAlignment {
+                                        vertical: VerticalAlign::Bottom,
+                                        horizontal: HorizontalAlign::Left,
+                                    },
+                                ),
+                                text_2d_size: Text2dSize {
+                                    size: Size::new(100., 100.),
+                                },
+                                transform: Transform::from_xyz(-10.0, -55.0, 0.1),
+                                ..Default::default()
+                            })
+                            .insert(StrengthCounter);
+                    });
+            })
+            .id()
+    }
+}
+
 #[derive(Component)]
 pub struct Buddy {
     pub alive: bool,
@@ -202,112 +343,6 @@ pub struct BuddyBundle {
     pub side: Side,
     pub transform: Transform,
     pub global_transform: GlobalTransform,
-}
-
-pub fn spawn_buddy(
-    commands: &mut Commands,
-    asset_server: &AssetServer,
-    buddy: BuddyBundle,
-) -> Entity {
-    commands
-        .spawn_bundle(buddy)
-        .with_children(|parent| {
-            parent
-                .spawn_bundle(SpriteBundle::default())
-                .insert(BuddyWobble::default())
-                .insert(AnimateScale::new(
-                    Duration::from_secs_f32(0.6),
-                    Ease::OutBack,
-                    0.0..1.0,
-                    false,
-                ))
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(SpriteBundle {
-                            texture: asset_server.load("buddy/base.png"),
-                            transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY)
-                                .with_scale(Vec3::splat(0.5)),
-                            ..Default::default()
-                        })
-                        .insert(BuddyBodySprite);
-                    parent
-                        .spawn_bundle(SpriteBundle {
-                            texture: asset_server.load("buddy/outline.png"),
-                            transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.1)
-                                .with_scale(Vec3::splat(0.5)),
-                            ..Default::default()
-                        })
-                        .insert(BuddyOutline);
-                    parent
-                        .spawn_bundle(SpriteBundle {
-                            transform: Transform::from_xyz(0.0, 0.0, Z_BUDDY + 0.2)
-                                .with_scale(Vec3::splat(0.5)),
-                            ..Default::default()
-                        })
-                        .insert(BuddyFaceSprite);
-                });
-            parent
-                .spawn_bundle(SpriteBundle {
-                    transform: Transform::from_xyz(-40.0, -70.0, Z_BUDDY + 0.3)
-                        .with_scale(Vec3::splat(0.5)),
-                    texture: asset_server.load("buddy/health.png"),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(Text2dBundle {
-                            text: Text::with_section(
-                                "0",
-                                TextStyle {
-                                    font: asset_server.load("font/CaveatBrush-Regular.ttf"),
-                                    font_size: 110.0,
-                                    color: Color::hex("ececec").unwrap(),
-                                },
-                                TextAlignment {
-                                    vertical: VerticalAlign::Bottom,
-                                    horizontal: HorizontalAlign::Left,
-                                },
-                            ),
-                            text_2d_size: Text2dSize {
-                                size: Size::new(100., 100.),
-                            },
-                            transform: Transform::from_xyz(-20.0, -55.0, 0.1),
-                            ..Default::default()
-                        })
-                        .insert(HealthCounter);
-                });
-            parent
-                .spawn_bundle(SpriteBundle {
-                    transform: Transform::from_xyz(40.0, -70.0, Z_BUDDY + 0.3)
-                        .with_scale(Vec3::splat(0.5)),
-                    texture: asset_server.load("buddy/strength.png"),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent
-                        .spawn_bundle(Text2dBundle {
-                            text: Text::with_section(
-                                "0",
-                                TextStyle {
-                                    font: asset_server.load("font/CaveatBrush-Regular.ttf"),
-                                    font_size: 110.0,
-                                    color: Color::hex("ececec").unwrap(),
-                                },
-                                TextAlignment {
-                                    vertical: VerticalAlign::Bottom,
-                                    horizontal: HorizontalAlign::Left,
-                                },
-                            ),
-                            text_2d_size: Text2dSize {
-                                size: Size::new(100., 100.),
-                            },
-                            transform: Transform::from_xyz(-10.0, -55.0, 0.1),
-                            ..Default::default()
-                        })
-                        .insert(StrengthCounter);
-                });
-        })
-        .id()
 }
 
 #[derive(Component)]

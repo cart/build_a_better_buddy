@@ -1,8 +1,6 @@
 use crate::{
     game::{
-        buddy::{
-            spawn_buddy, Attribute, Buddy, BuddyBundle, BuddyColor, BuddyFace, Health, Side, Slot,
-        },
+        buddy::{Buddy, BuddyTemplate, Side, Slot},
         counters::{set_coin_text, set_trophies_text, Coins, Trophies},
         pad::{position_pad, spawn_pad},
         ui::UiRoot,
@@ -57,6 +55,7 @@ pub struct ShopState {
 pub fn enter_shop(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    trophies: Res<Trophies>,
     ui_root: Query<Entity, With<UiRoot>>,
     buddies: Query<(Entity, &Side), With<Buddy>>,
 ) {
@@ -72,16 +71,14 @@ pub fn enter_shop(
     }
 
     for i in 0..SHOP_BUDDY_SLOTS {
-        let buddy = BuddyBundle {
-            color: BuddyColor::random(),
-            slot: Slot::new(i),
-            face: BuddyFace::random(),
-            side: Side::Shop,
-            health: Health(Attribute::new(2)),
-            transform: Transform::from_xyz(0.0, -500.0, 0.0),
-            ..Default::default()
-        };
-        let buddy_id = spawn_buddy(&mut commands, &asset_server, buddy);
+        let template = BuddyTemplate::random_for_round(trophies.rounds + 2);
+        let buddy_id = template.spawn(
+            &mut commands,
+            &asset_server,
+            i,
+            Side::Shop,
+            Transform::from_xyz(0.0, -500.0, 0.0),
+        );
         add_price(&mut commands, &asset_server, buddy_id, 2);
     }
 }

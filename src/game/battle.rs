@@ -3,10 +3,7 @@ use std::time::Duration;
 use crate::{
     game::{
         animate::{AnimateRange, Ease},
-        buddy::{
-            spawn_buddy, Buddy, BuddyBundle, BuddyColor, BuddyFace, Health, Offset, Side, Slot,
-            Strength,
-        },
+        buddy::{Buddy, BuddyTemplate, Health, Offset, Side, Slot, Strength},
         counters::{Coins, Trophies},
         pad::{pad_enter_battle, pad_exit_battle, position_pad, PAD_SPACING},
         BattleMessages,
@@ -96,14 +93,14 @@ pub fn enter_battle(
     }
 
     for i in 0..Slot::MAX_PER_SIDE {
-        let buddy = BuddyBundle {
-            color: BuddyColor::random(),
-            slot: Slot::new(i),
-            face: BuddyFace::random(),
-            side: Side::Right,
-            ..Default::default()
-        };
-        spawn_buddy(&mut commands, &asset_server, buddy);
+        let template = BuddyTemplate::random_for_round(trophies.rounds);
+        template.spawn(
+            &mut commands,
+            &asset_server,
+            i,
+            Side::Right,
+            Transform::default(),
+        );
     }
 
     battle.action = Action::Begin {
@@ -307,16 +304,22 @@ pub fn battle(
                             animate_out,
                         }
                     }
-                    (false, true) => Action::ShowMessage {
-                        entity: battle_messages.you_lose,
-                        animate_in,
-                        animate_out,
-                    },
-                    (false, false) => Action::ShowMessage {
-                        entity: battle_messages.you_tie,
-                        animate_in,
-                        animate_out,
-                    },
+                    (false, true) => {
+                        coins.0 += 2;
+                        Action::ShowMessage {
+                            entity: battle_messages.you_lose,
+                            animate_in,
+                            animate_out,
+                        }
+                    }
+                    (false, false) => {
+                        coins.0 += 3;
+                        Action::ShowMessage {
+                            entity: battle_messages.you_tie,
+                            animate_in,
+                            animate_out,
+                        }
+                    }
                 };
                 next_action = Some(action);
             }
