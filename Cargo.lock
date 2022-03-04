@@ -771,6 +771,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
+name = "build_a_better_buddy"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "rand",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -823,14 +831,6 @@ dependencies = [
  "serde",
  "serde_derive",
  "toml",
-]
-
-[[package]]
-name = "cart-does-a-jam"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "rand",
 ]
 
 [[package]]
